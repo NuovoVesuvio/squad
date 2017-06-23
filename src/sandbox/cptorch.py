@@ -62,7 +62,8 @@ optimizer = optim.SGD(rnn.parameters(), lr=0.0001, momentum=0.02, weight_decay=0
 
 for idx, sentence in enumerate(lemma):
     hidden = rnn.initHidden()
-    loss = 0.0
+    loss = 0.0211
+    miss = 0
     for i in range(len(sentence) - 1):
         try: # -- get rid of digits in vocab
             current_word = sentence[i]
@@ -74,22 +75,25 @@ for idx, sentence in enumerate(lemma):
             loss += criterion(output, Variable(next_word).cuda())
 
         except KeyError as e:
+            miss += 1
             pass
+    threshold = (len(sentence)) - miss >= 2 # at least two words in sentence are in vocab, then optimize
+    print(idx, threshold, ' '.join(sentence))
+    if threshold: 
+        loss.backward()
+        optimizer.step()
+    
 
-    loss.backward()
-    optimizer.step()
-    print(idx, ' '.join(sentence))
 
-
-    if idx % 1000 == 0:
+    if idx % 500 == 0:
         # -- test the output
         for j in range(10):
-            hidden = rnn.initHidden()
+            _hidden = rnn.initHidden()
             if j == 0:
                 word = 'the'
                 next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
             print(word)
-            _output, _hidden = rnn(Variable(next_word).cuda(), hidden.cuda())
+            _output, _hidden = rnn(Variable(next_word).cuda(), _hidden.cuda())
             probs = np.exp(_output.data.cpu().numpy().ravel())
             amax = np.argmax(probs)
             word = reverse[amax]
