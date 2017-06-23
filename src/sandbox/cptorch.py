@@ -61,39 +61,39 @@ optimizer = optim.SGD(rnn.parameters(), lr=0.0001, momentum=0.02, weight_decay=0
 
 
 for idx, sentence in enumerate(lemma):
-    if len(sentence) > 1:
-        hidden = rnn.initHidden()
-        loss = 0.0
-        for i in range(len(sentence) - 1):
-            try: # -- get rid of digits in vocab
-                current_word = sentence[i]
-                current_index = vocab[current_word]
-                current_embedding = torch.from_numpy(embeddings[current_index]).unsqueeze(0)
-                vembedding = Variable(current_embedding).cuda()
-                next_word = torch.from_numpy(np.array([vocab[sentence[i+1]]]))
-                output, hidden = rnn(vembedding, hidden.cuda())
-                loss += criterion(output, Variable(next_word).cuda())
-
-            except KeyError as e:
-                pass
-
-        loss.backward()
-        optimizer.step()
-        print(idx)
-
-
-# -- test the output
-for i in range(10):
     hidden = rnn.initHidden()
-    if i == 0:
-        word = 'b'
-        next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
-    print(word)
-    _output, _hidden = rnn(Variable(next_word).cuda(), hidden.cuda())
-    probs = np.exp(phat.data.cpu().numpy().ravel())
-    amax = np.argmax(probs)
-    word = reverse[amax]
-    next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
+    loss = 0.0
+    for i in range(len(sentence) - 1):
+        try: # -- get rid of digits in vocab
+            current_word = sentence[i]
+            current_index = vocab[current_word]
+            current_embedding = torch.from_numpy(embeddings[current_index]).unsqueeze(0)
+            vembedding = Variable(current_embedding).cuda()
+            next_word = torch.from_numpy(np.array([vocab[sentence[i+1]]]))
+            output, hidden = rnn(vembedding, hidden.cuda())
+            loss += criterion(output, Variable(next_word).cuda())
+
+        except KeyError as e:
+            pass
+
+    loss.backward()
+    optimizer.step()
+    print(idx, ' '.join(sentence))
+
+
+    if idx % 1000 == 0:
+        # -- test the output
+        for j in range(10):
+            hidden = rnn.initHidden()
+            if j == 0:
+                word = 'the'
+                next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
+            print(word)
+            _output, _hidden = rnn(Variable(next_word).cuda(), hidden.cuda())
+            probs = np.exp(_output.data.cpu().numpy().ravel())
+            amax = np.argmax(probs)
+            word = reverse[amax]
+            next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
 
 
 
