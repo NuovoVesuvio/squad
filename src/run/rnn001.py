@@ -69,7 +69,8 @@ def train(embedding_size, hidden_dim, gradclip, initalrange, lr, momentum, weigh
     optimizer = optim.SGD(rnn.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
 
     # -- train the network 
-    for idx, sentence in enumerate(lemma):
+    for idx in np.range.permutation(len(sentence)):
+        sentence = lemma[idex]    
         hidden = rnn.initHidden(initalrange)
         loss = 0.0211
         miss = 0
