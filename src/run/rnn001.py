@@ -39,6 +39,7 @@ class RNN(nn.Module):
         return Variable(torch.from_numpy(np.random.uniform(low=-value, high=value, size=(1,self.hidden_size))).float())
 
 
+
 def getNorm(i2o):
     return np.linalg.norm(i2o, ord='fro')
 
@@ -56,6 +57,7 @@ def loaddata(embeddings='../../data/lemmas_embeddings.pickle', text='../../data/
     return data, lemma
 
 
+
 def train(embedding_size, hidden_dim, gradclip, initalrange, lr, momentum, weight_decay):
     # -- load the data()
     data, lemma = loaddata()
@@ -66,11 +68,12 @@ def train(embedding_size, hidden_dim, gradclip, initalrange, lr, momentum, weigh
     # -- initalize network
     rnn = RNN(embedding_size, hidden_dim, len(vocab)).cuda()
     criterion = nn.CrossEntropyLoss() # use a Classification Cross-Entropy loss
-    optimizer = optim.SGD(rnn.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    # optimizer = optim.SGD(rnn.parameters(), lr=lr, momentum=momentum, weight_decay=weight_decay)
+    print(colored(rnn, 'green'))
 
     # -- train the network 
-    for idx in np.range.permutation(len(sentence)):
-        sentence = lemma[idex]    
+    for counter, idx in enumerate(np.random.permutation(len(lemma))):
+        sentence = lemma[idx]    
         hidden = rnn.initHidden(initalrange)
         loss = 0.0211
         miss = 0
@@ -83,28 +86,31 @@ def train(embedding_size, hidden_dim, gradclip, initalrange, lr, momentum, weigh
                 next_word = torch.from_numpy(np.array([vocab[sentence[i+1]]]))
                 output, hidden = rnn(vembedding, hidden.cuda())
                 loss += criterion(output, Variable(next_word).cuda())
-                torch.nn.utils.clip_grad_norm(rnn.parameters(), gradclip)
+                
 
             except KeyError as e:
                 miss += 1
                 pass
         threshold = (len(sentence)) - miss >= 2 # at least two words in sentence are in vocab, then optimize
-        print(idx, threshold, ' '.join(sentence))
-        if threshold: 
+        print(counter, threshold, ' '.join(sentence))
+        if threshold:
             loss.backward()
-            optimizer.step()
+            torch.nn.utils.clip_grad_norm(rnn.parameters(), gradclip)
+            for p in rnn.parameters():
+                p.data.add_(-lr, p.grad.data)
+            # optimizer.step()
         
         # -- evaluate with predicited sentences
         psent = []    
-        if idx % 100 == 0:
+        if counter % 100 == 0:
             # -- test the output
-            for j in range(10):
-                _hidden = rnn.initHidden(initalrange )
+            _hidden = rnn.initHidden(initalrange)
+            for j in range(10):                
                 if j == 0:
                     word = 'the'
                     next_word = torch.from_numpy(embeddings[vocab[word]]).unsqueeze(0)
                 psent.append(word)
-                _output, dummy_hidden = rnn(Variable(next_word).cuda(), _hidden.cuda())
+                _output, _hidden = rnn(Variable(next_word).cuda(), _hidden.cuda())
                 probs = np.exp(_output.data.cpu().numpy().ravel())
                 amax = np.argmax(probs)
                 word = reverse[amax]
@@ -117,6 +123,7 @@ def train(embedding_size, hidden_dim, gradclip, initalrange, lr, momentum, weigh
             norm_i2h = getNorm(i2h)
             norm_o2o = getNorm(o2o)
             print(colored('Norms: %.2f,\t%.2f,\t%.2f' % (norm_i2o, norm_i2h, norm_o2o), 'red'))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('RNN training and network')
